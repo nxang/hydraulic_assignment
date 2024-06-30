@@ -1,19 +1,27 @@
+#include "MovingAverageFloat.h"
 #define pin1 8
 #define pin2 17
 #define pin3 18
-#define button 5
+#define button1 38
+#define button2 37
+#define button3 36
 #define trigger 11
 #define echo 10
 
 #define PIN1(state) digitalWrite(pin1, state)
 #define PIN2(state) digitalWrite(pin2, state)
 #define PIN3(state) digitalWrite(pin3, state)
-#define BUTTON analogRead(button)
+#define BUTTON1 digitalRead(button1)
+#define BUTTON2 digitalRead(button2)
+#define BUTTON3 digitalRead(button3)
+
 
 #define RGB 97
 #define RGB_TRANSITION_TIME 100  // Transition time in milliseconds (5 seconds)
 #define BRIGHTNESS 10
-float duration, distance;
+MovingAverageFloat <16> filter;
+float duration, distance, target, dist, error;
+
 
 void MainTask(void *pvParameters);
 void RGB_Task(void *pvParameters);
@@ -25,7 +33,9 @@ void setup() {
   pinMode(pin1, OUTPUT);
   pinMode(pin2, OUTPUT);
   pinMode(pin3, OUTPUT);
-    pinMode(5, INPUT_PULLDOWN);
+  pinMode(button1, INPUT);
+  pinMode(button2, INPUT);
+  pinMode(button3, INPUT);
 
   pinMode(trigger, OUTPUT);
   pinMode(echo, INPUT);
@@ -59,27 +69,43 @@ void loop() {
 }
 
 void MainTask(void *pvParameters) {
+  // target = 7.0;
   for (;;) {
 
     // put your main code here, to run repeatedly:
-    if (BUTTON < 1200) {
-      neopixelWrite(RGB, 0, 0, 0);
-
-      Serial.println("no press");
-    } else if (BUTTON > 1300 && BUTTON < 1900) {
+    if (BUTTON1) {
       neopixelWrite(RGB, 10, 0, 0);
+      target = 7.0;
+      // PIN2(0);
+      // PIN1(1);
       // Serial.println("button1");
-    } else if (BUTTON > 1950 && BUTTON < 2700) {
+    } else if (BUTTON2) {
       neopixelWrite(RGB, 0, 10, 0);
-    } else if (BUTTON > 2750 && BUTTON < 3600) {
+      target = 15.0;
+      // PIN2(1);
+      // PIN1(0);
+    } else if (BUTTON3) {
       neopixelWrite(RGB, 0, 0, 10);
+      target = 23.0;
 
       // Serial.println("button3");
     } else {
       neopixelWrite(RGB, 10, 10, 10);
 
     }
-      // Serial.println(BUTTON);
+    error = target - dist;
+    if(error>1.0){
+      PIN2(1);
+      PIN1(0);
+    }else if(error<-1.0){
+      PIN2(0);
+      PIN1(1);
+    }else{
+      PIN2(0);
+      PIN1(0);
+    }
+    // Serial.print(dist);
+    //   Serial.println(target);
     // PIN1(1);
     // PIN2(0);
     // PIN3(0);
@@ -101,8 +127,13 @@ void Sensor_Task(void *pvParameters) {
 
   duration = pulseIn(echo, HIGH);
   distance = (duration*.0343)/2;
+  filter.add(distance);
+  dist = filter.get();
   Serial.print("Distance: ");
-  Serial.println(distance);
+  Serial.print(dist);
+  Serial.print(" Target: ");
+  Serial.println(target);
+  
   // delay(100);
     vTaskDelay(1);
   }
@@ -111,6 +142,8 @@ void Sensor_Task(void *pvParameters) {
 void RGB_Task(void *pvParameters) {
 
   for (;;) {
-    vTaskDelay(10);
+    // PIN2(0);
+    //   PIN3(1);
+    vTaskDelay(1);
   }
 }
